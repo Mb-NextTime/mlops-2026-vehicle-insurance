@@ -1,0 +1,39 @@
+# Настройки путей проекта
+paths:
+  raw_data: "data/raw/"
+  processed_data: "data/processed/"
+  external_data: "data/external/"
+  models: "storage/models/"
+  metrics: "storage/metrics/"
+  reports: "storage/reports/"
+
+# Настройки эмуляции сбора данных (Batching)
+data_collection:
+  target_column: "TYPE_VEHICLE"
+  time_column: "INSR_BEGIN"
+  batch_size: 5000
+  missing_value_injection_rate: 0.05
+
+# Настройки Data Quality (Анализ данных)
+data_quality:
+  max_missing_threshold: 0.3
+  apriori_min_support: 0.1
+  apriori_min_confidence: 0.5
+
+# Настройки обучения (Pipeline и Models)
+training:
+  test_size: 0.2
+  random_state: 42
+  models:
+    - name: "RandomForest"
+      type: "tree"
+      params:
+        n_estimators: 100
+        max_depth: 10
+        warm_start: true
+    - name: "NeuralNetwork"
+      type: "nn"
+      params:
+        hidden_layer_sizes:[64, 32]
+        max_iter: 200
+        warm_start: true

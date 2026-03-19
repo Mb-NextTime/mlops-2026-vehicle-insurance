@@ -5,6 +5,7 @@ import logging
 import time
 
 from src.models.data_handler import DataStreamer
+from src.models.data_analyzer import DataAnalyzer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,7 +30,7 @@ def run_update(config):
     start_time = time.time()
 
     try:
-        # ЭТАП 1: Сбор данных
+        # Сбор данных
         streamer = DataStreamer(config)
         new_batch_path = streamer.get_next_batch()
 
@@ -37,7 +38,10 @@ def run_update(config):
             logger.info("Нет новых данных для обработки.")
             return False
 
-        # TODO: ЭТАП 2: Анализ данных (Data Quality + EDA)
+        # Анализ данных (Data Quality + EDA)
+        analyzer = DataAnalyzer(config)
+        clean_batch_path = analyzer.process_batch(new_batch_path)
+
         # TODO: ЭТАП 3: Подготовка данных и дообучение моделей
 
         status = True

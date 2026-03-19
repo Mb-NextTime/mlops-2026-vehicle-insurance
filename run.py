@@ -4,6 +4,8 @@ import sys
 import logging
 import time
 
+from src.models.data_handler import DataStreamer
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -25,15 +27,23 @@ def run_update(config):
     """
     logger.info("Начат процесс UPDATE (сбор данных, анализ, дообучение)...")
     start_time = time.time()
-    
+
     try:
-        # TODO: Интеграция с src.controllers.pipeline_controller
-        # pipeline = PipelineController(config)
-        # status = pipeline.run_update_pipeline()
-        logger.info("Заглушка: пайплайн успешно отработал.")
+        # ЭТАП 1: Сбор данных
+        streamer = DataStreamer(config)
+        new_batch_path = streamer.get_next_batch()
+
+        if not new_batch_path:
+            logger.info("Нет новых данных для обработки.")
+            return False
+
+        # TODO: ЭТАП 2: Анализ данных (Data Quality + EDA)
+        # TODO: ЭТАП 3: Подготовка данных и дообучение моделей
+
         status = True
     except Exception as e:
-        logger.error(f"Ошибка в процессе Update: {e}")
+        logger.error(f"Ошибка в процессе Update: {e!r}")
+        logger.exception(e)
         status = False
         
     execution_time = time.time() - start_time
@@ -73,14 +83,18 @@ def run_summary(config):
         logger.error(f"Ошибка в процессе Summary: {e}")
         return None
 
-def main():
+def parse_args():
     parser = argparse.ArgumentParser(description="MLOps MVP Pipeline CLI")
     parser.add_argument("-mode", type=str, required=True, choices=["inference", "update", "summary"],
                         help="Режим работы программы")
     parser.add_argument("-file", type=str, required=False,
                         help="Путь к файлу с внешними данными (только для режима inference)")
     
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
     config = load_config()
     
     if args.mode == "update":

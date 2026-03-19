@@ -1,11 +1,13 @@
 # Настройки путей проекта
 paths:
-  raw_data: "data/raw/"
+  initial_data: "data/initial/motor_data14-2018.csv"
+  raw_data: "data/raw"
   processed_data: "data/processed/"
   external_data: "data/external/"
   models: "storage/models/"
   metrics: "storage/metrics/"
   reports: "storage/reports/"
+  stream_state: "storage/stream_state.json"
 
 # Настройки эмуляции сбора данных (Batching)
 data_collection:
@@ -34,6 +36,6 @@ training:
     - name: "NeuralNetwork"
       type: "nn"
       params:
-        hidden_layer_sizes:[64, 32]
+        hidden_layer_sizes: [64, 32]
         max_iter: 200
         warm_start: true

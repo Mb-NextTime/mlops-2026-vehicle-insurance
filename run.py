@@ -69,20 +69,31 @@ def run_inference(config, file_path):
     try:
         import pandas as pd
         import joblib
+        import json
 
-        df = pd.read_csv(file_path)
-
-        prep_path = os.path.join(config['paths']['models'], 'preprocessor.pkl')
-        model_path = os.path.join(config['paths']['models'], 'model_rf.pkl')
-
-        if not os.path.exists(prep_path) or not os.path.exists(model_path):
-            logger.error("Модели не обучены! Сначала запустите режим update.")
+        registry_path = os.path.join(config['paths']['models'], 'model_registry.json')
+        if not os.path.exists(registry_path):
+            logger.error("Реестр моделей не найден, сначала запустите режим update.")
             return None
+
+        with open(registry_path, 'r') as f:
+            registry = json.load(f)
+
+        best_model_info = registry.get("best_model", {})
+        if not best_model_info.get("path"):
+            logger.error("В реестре нет лучшей модели.")
+            return None
+
+        logger.info(f"Выбрана лучшая модель: {best_model_info['name']} (Acc: {best_model_info['accuracy']:.4f}) из файла {best_model_info['path']}")
+
+        prep_path = os.path.join(config['paths']['models'], registry["latest"]["preprocessor"])
+        model_path = os.path.join(config['paths']['models'], best_model_info["path"])
 
         preprocessor = joblib.load(prep_path)
         model = joblib.load(model_path)
 
-        # Убираем таргет
+        df = pd.read_csv(file_path)
+        # убираем таргет
         target_col = config['data_collection']['target_column']
         if target_col in df.columns:
             df_features = df.drop(columns=[target_col])

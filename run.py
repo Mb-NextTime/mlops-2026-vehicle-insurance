@@ -3,9 +3,11 @@ import yaml
 import sys
 import logging
 import time
+import os
 
 from src.models.data_handler import DataStreamer
 from src.models.data_analyzer import DataAnalyzer
+from src.models.ml_model import ModelManager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,9 +44,10 @@ def run_update(config):
         analyzer = DataAnalyzer(config)
         clean_batch_path = analyzer.process_batch(new_batch_path)
 
-        # TODO: ЭТАП 3: Подготовка данных и дообучение моделей
+        model_manager = ModelManager(config)
+        ml_status = model_manager.train_or_update(clean_batch_path)
 
-        status = True
+        status = ml_status
     except Exception as e:
         logger.error(f"Ошибка в процессе Update: {e!r}")
         logger.exception(e)
@@ -56,33 +59,96 @@ def run_update(config):
 
 def run_inference(config, file_path):
     """
-    Применение лучшей обученной модели к новым данным.
+    Применение лучшей обученной модели к внешним данным.
     """
     logger.info(f"Начат процесс INFERENCE для файла: {file_path}")
-    if not file_path:
-        logger.error("Для режима inference необходимо передать аргумент -file")
+    if not file_path or not os.path.exists(file_path):
+        logger.error("Для режима inference необходимо передать корректный путь -file")
         return None
         
     try:
-        # TODO: Загрузка модели через src.models.ml_models
-        # TODO: Чтение file_path через pandas, predict, сохранение результата
-        save_path = "data/external/predictions_output.csv"
-        logger.info(f"Заглушка: предсказания сохранены в {save_path}")
+        import pandas as pd
+        import joblib
+
+        df = pd.read_csv(file_path)
+
+        prep_path = os.path.join(config['paths']['models'], 'preprocessor.pkl')
+        model_path = os.path.join(config['paths']['models'], 'model_rf.pkl')
+
+        if not os.path.exists(prep_path) or not os.path.exists(model_path):
+            logger.error("Модели не обучены! Сначала запустите режим update.")
+            return None
+
+        preprocessor = joblib.load(prep_path)
+        model = joblib.load(model_path)
+
+        # Убираем таргет
+        target_col = config['data_collection']['target_column']
+        if target_col in df.columns:
+            df_features = df.drop(columns=[target_col])
+        else:
+            df_features = df.copy()
+
+        X_prep = preprocessor.transform(df_features)
+
+        predictions = model.predict(X_prep)
+
+        df['predict'] = predictions
+
+        os.makedirs(config['paths']['external_data'], exist_ok=True)
+        save_path = os.path.join(config['paths']['external_data'], "predictions_output.csv")
+        df.to_csv(save_path, index=False)
+
+        logger.info(f"Прогнозы успешно сохранены в {save_path}")
         return save_path
+
     except Exception as e:
         logger.error(f"Ошибка в процессе Inference: {e}")
         return None
 
 def run_summary(config):
     """
-    Генерация отчета об изменении качества данных и моделей.
+    Генерация Markdown отчета об изменении метрик (Во времени).
     """
     logger.info("Начат процесс SUMMARY (генерация отчетов)...")
     try:
-        # TODO: Вызов View-модуля для агрегации метрик из storage/metrics/
-        report_path = "storage/reports/summary_report.md"
-        logger.info(f"Заглушка: отчет сгенерирован в {report_path}")
+        import os
+        import json
+        import pandas as pd
+
+        metrics_dir = config['paths']['metrics']
+        reports_dir = config['paths']['reports']
+        os.makedirs(reports_dir, exist_ok=True)
+
+        # Собираем данные по всем батчам
+        summary_data = []
+        for file in sorted(os.listdir(metrics_dir)):
+            if file.endswith("_ml_metrics.json"):
+                with open(os.path.join(metrics_dir, file), 'r') as f:
+                    data = json.load(f)
+                    summary_data.append({
+                        "Batch": data["batch_id"],
+                        "RF_Accuracy": data["models"]["RandomForest"]["accuracy"],
+                        "MLP_Accuracy": data["models"]["MLP_NeuralNet"]["accuracy"]
+                    })
+
+        if not summary_data:
+            logger.warning("Нет метрик для генерации отчета.")
+            return None
+
+        df_summary = pd.DataFrame(summary_data)
+
+        # Генерируем Markdown файл
+        report_path = os.path.join(reports_dir, "summary_report.md")
+        with open(report_path, "w") as f:
+            f.write("# Отчет о мониторинге ML-Системы (Summary)\n\n")
+            f.write("## Динамика качества моделей (Accuracy)\n\n")
+            f.write(df_summary.to_markdown(index=False))
+            f.write("\n\n*Отчет сгенерирован автоматически.*\n")
+
+        logger.info(f"Отчет сгенерирован в {report_path}")
         return report_path
+
     except Exception as e:
         logger.error(f"Ошибка в процессе Summary: {e}")
         return None

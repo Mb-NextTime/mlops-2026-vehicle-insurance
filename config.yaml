@@ -26,6 +26,18 @@ data_quality:
 training:
   test_size: 0.2
   random_state: 42
+  targets:
+    - "Pick-up"
+    - "Truck"
+    - "Bus"
+    - "Trailers and semitrailers"
+    - "Automobile"
+    - "Motor-cycle"
+    - "Station Wagones"
+    - "Tractor"
+    - "Special construction"
+    - "Tanker"
+    - "Trade plates"
   models:
     - name: "RandomForest"
       type: "tree"

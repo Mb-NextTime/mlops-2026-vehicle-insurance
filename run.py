@@ -9,6 +9,8 @@ from src.models.data_handler import DataStreamer
 from src.models.data_analyzer import DataAnalyzer
 from src.models.ml_model import ModelManager
 
+os.makedirs("storage/reports", exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',

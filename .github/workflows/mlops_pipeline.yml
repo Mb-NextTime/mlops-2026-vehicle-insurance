@@ -1,0 +1,86 @@
+name: MLOps CRON-Incremental Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  schedule:
+    # Запуск каждый день в 00:00 (по UTC)
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  build-test-and-train:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip' # Автоматическое кэширование зависимостей pip
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Unit Tests
+      run: |
+        pytest tests/
+
+    # Кэшируем директорию storage, чтобы состояние сохранялось между CRON-запусками
+    - name: Restore Storage Cache
+      id: restore-cache
+      uses: actions/cache/restore@v3
+      with:
+        path: storage/
+        key: mlops-storage-${{ github.run_id }}
+        restore-keys: |
+          mlops-storage-
+
+    - name: Run MLOps Update (Incremental Training)
+      # Запускаем 2 итерации для демонстрации дообучения изнутри CI/CD (выполнение п.1.b.i)
+      run: |
+        echo "Запуск Итерации 1..."
+        python run.py -mode update
+        echo "Запуск Итерации 2..."
+        python run.py -mode update
+
+    - name: Save Storage Cache
+      # Сохраняем обновленные модели и стейт для следующего запуска по CRON
+      uses: actions/cache/save@v3
+      if: always()
+      with:
+        path: storage/
+        key: mlops-storage-${{ github.run_id }}
+
+    - name: Generate Summary Report
+      run: |
+        python run.py -mode summary
+
+    - name: Publish Dashboard to GitHub Step Summary
+      # Выводим отчет в интерфейс GitHub Actions (выполнение п.2.b.iii)
+      run: |
+        if [ -f storage/reports/summary_report.md ]; then
+          cat storage/reports/summary_report.md >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Отчет не найден" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Upload Artifacts (Logs, Models, Stream State)
+      # Сохраняем артефакты, чтобы их можно было скачать (выполнение п.2.a, 2.b.i, 2.b.ii)
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: mlops-artifacts
+        path: |
+          storage/reports/system.log
+          storage/stream_state.json
+          storage/models/model_registry.json
+          storage/models/*.pkl
+        retention-days: 7

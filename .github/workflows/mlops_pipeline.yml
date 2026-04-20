@@ -16,10 +16,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Python 3.11
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip' # Автоматическое кэширование зависимостей pip
@@ -36,7 +36,7 @@ jobs:
     # Кэшируем директорию storage, чтобы состояние сохранялось между CRON-запусками
     - name: Restore Storage Cache
       id: restore-cache
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       with:
         path: storage/
         key: mlops-storage-${{ github.run_id }}
@@ -44,7 +44,6 @@ jobs:
           mlops-storage-
 
     - name: Run MLOps Update (Incremental Training)
-      # Запускаем 2 итерации для демонстрации дообучения изнутри CI/CD (выполнение п.1.b.i)
       run: |
         echo "Запуск Итерации 1..."
         python run.py -mode update
@@ -52,8 +51,7 @@ jobs:
         python run.py -mode update
 
     - name: Save Storage Cache
-      # Сохраняем обновленные модели и стейт для следующего запуска по CRON
-      uses: actions/cache/save@v3
+      uses: actions/cache/save@v4
       if: always()
       with:
         path: storage/
@@ -64,7 +62,6 @@ jobs:
         python run.py -mode summary
 
     - name: Publish Dashboard to GitHub Step Summary
-      # Выводим отчет в интерфейс GitHub Actions (выполнение п.2.b.iii)
       run: |
         if [ -f storage/reports/summary_report.md ]; then
           cat storage/reports/summary_report.md >> $GITHUB_STEP_SUMMARY
@@ -73,8 +70,7 @@ jobs:
         fi
 
     - name: Upload Artifacts (Logs, Models, Stream State)
-      # Сохраняем артефакты, чтобы их можно было скачать (выполнение п.2.a, 2.b.i, 2.b.ii)
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: mlops-artifacts
